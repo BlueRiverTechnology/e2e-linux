@@ -562,6 +562,72 @@ config TPS6594_PFSM
 	  This driver can also be built as a module.  If so, the module
 	  will be called tps6594-pfsm.
 
+config SETPARPORT_RAW
+	tristate "Raw output driver for parallel port"
+	select LOCKUP_DETECTOR
+	help
+	  It sometimes is required to directly signal a specific state at
+	  the parallel port without using a driver, e.g. in a crashed
+	  system that still has some kind of life in it. Usage:
+	    echo 0 .. 255 >/dev/setparport -> set output byte
+	    echo 256 .. 511 >/dev/setparport -> or byte with output byte
+	    echo 512 >/dev/setparport clear all output bits
+	    echo 513 >/dev/setparport set all output bits
+	    echo 514 >/dev/setparport invert output bits
+	    echo 515 >/dev/setparport increment output bits
+	    echo 516 >/dev/setparport decrement output bits
+	    echo 517 >/dev/setparport copy status register to output bits
+	    echo 518 >/dev/setparport copy jiffies LSBs >> 10 to output bits
+	  In addition, this driver is used as a callback in the NMI handler.
+	  If installed, it allows to monitor NMI activity, e.g. using LEDs
+	  connected to the parallel port. The module parameter "nmicode" is
+	  then used to define the code to be sent at every NMI call, e.g.
+	  to increment the 8-bit number at the parallel port at every NMI
+	    modprobe setparport nmicode=515
+	  or
+	    echo 515 >/sys/module/setparport/parameters/nmicode
+
+	  The four input lines can also be used to request specific actions;
+	  defaults are enabled, if the parameter actions=yes is given:
+	    S4: Show states (SysRq-T)
+	    S5: Sync (SysRq-S)
+	    S6: Unmount (SysRq-U)
+	    S7: Boot (SysRq-B)
+	  Please note that this is a simple polling mechanism; you need to
+	  press the button during execution of the NMI callback. This was
+	  deliberately implemented this way, in order to keep it
+	  functional even if the entire IRQ subsystem is no longer working.
+	  The only prerequisite is a working memory mapping of the parallel
+	  port's IO region. If you want to let the NMI execute individual
+	  debug actions, they must be programmed into drivers/misc/setparport.c
+
+	  Last not least, this driver can be used to output the LSB of the
+	  most recent syscall, hardware IRQ or software IRQ vector at the
+	  parallel port which may provide useful post-mortem information in
+	  case of a system crash.
+	  System call:
+	    modprobe setparport sysenter=1 sysexit=0
+	  or
+	    echo 1 >/sys/module/setparport/parameters/sysenter
+	    echo 0 >/sys/module/setparport/parameters/sysexit
+	  Hardware IRQ number:
+	    modprobe setparport irqenter=1, irqexit=384
+	  or
+	    echo 1 >/sys/module/setparport/parameters/irqenter
+	    echo 384 >/sys/module/setparport/parameters/irqexit
+	  Software IRQ vector number:
+	    modprobe setparport sirqenter=1 sirqexit=384
+	  or
+	    echo 1 >/sys/module/setparport/parameters/sirqenter
+	    echo 384 >/sys/module/setparport/parameters/sirqexit
+
+	  If configured as a built-in kernel module, the following kernel
+	  command line parameters apply:
+	    setparport=<actions>,<nmicode>
+	    setparportirq=<irqenter>,<irqexit>
+	    setparportsirq=<sirqenter>,<sirqexit>
+	    setparportsyscall=<sysenter>,<sysexit>
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

@@ -17,6 +17,10 @@
 #include <asm/irq_regs.h>
 
 #include <trace/events/irq.h>
+EXPORT_TRACEPOINT_SYMBOL_GPL(irq_handler_entry);
+EXPORT_TRACEPOINT_SYMBOL_GPL(irq_handler_exit);
+EXPORT_TRACEPOINT_SYMBOL_GPL(softirq_entry);
+EXPORT_TRACEPOINT_SYMBOL_GPL(softirq_exit);
 
 #include "internals.h"
 

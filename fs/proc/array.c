@@ -98,7 +98,7 @@
 
 void proc_task_name(struct seq_file *m, struct task_struct *p, bool escape)
 {
-	char tcomm[64];
+	char tcomm[MAXFULLTASKNAME];
 
 	/*
 	 * Test before PF_KTHREAD because all workqueue worker threads are
@@ -114,7 +114,7 @@ void proc_task_name(struct seq_file *m, struct task_struct *p, bool escape)
 	if (escape)
 		seq_escape_str(m, tcomm, ESCAPE_SPACE | ESCAPE_SPECIAL, "\n\\");
 	else
-		seq_printf(m, "%.64s", tcomm);
+		seq_printf(m, "%.*s", (int) sizeof(tcomm), tcomm);
 }
 
 /*

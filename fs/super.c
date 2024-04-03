@@ -1240,6 +1240,7 @@ void emergency_thaw_all(void)
 		schedule_work(work);
 	}
 }
+EXPORT_SYMBOL(emergency_remount);
 
 static DEFINE_IDA(unnamed_dev_ida);
 

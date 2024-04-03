@@ -101,6 +101,8 @@ void irq_exit_rcu(void);
  * be marked 'notrace' and call nmi_enter() as soon as possible.
  */
 
+extern void (*nmicallback)(void);
+
 /*
  * nmi_enter() can nest up to 15 times; see NMI_BITS.
  */
@@ -110,6 +112,8 @@ void irq_exit_rcu(void);
 		arch_nmi_enter();				\
 		BUG_ON(in_nmi() == NMI_MASK);			\
 		__preempt_count_add(NMI_OFFSET + HARDIRQ_OFFSET);	\
+		if (nmicallback)				\
+			nmicallback();				\
 	} while (0)
 
 #define nmi_enter()						\

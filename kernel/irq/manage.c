@@ -2852,6 +2852,13 @@ int irq_get_irqchip_state(unsigned int irq, enum irqchip_irq_state which,
 }
 EXPORT_SYMBOL_GPL(irq_get_irqchip_state);
 
+void (*nmicallback)(void);
+void set_nmicallback(void (*new_nmicallback)(void))
+{
+       nmicallback = new_nmicallback;
+}
+EXPORT_SYMBOL_GPL(set_nmicallback);
+
 /**
  *	irq_set_irqchip_state - set the state of a forwarded interrupt.
  *	@irq: Interrupt line that is forwarded to a VM

@@ -618,6 +618,13 @@ static struct ctl_table ipv4_net_table[] = {
 		.extra2		= SYSCTL_ONE
 	},
 	{
+		.procname	= "icmp_echo_sysrq",
+		.data		= &init_net.ipv4.sysctl_icmp_echo_sysrq,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
+	{
 		.procname	= "icmp_ignore_bogus_error_responses",
 		.data		= &init_net.ipv4.sysctl_icmp_ignore_bogus_error_responses,
 		.maxlen		= sizeof(u8),

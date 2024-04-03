@@ -1733,6 +1733,14 @@ this_rq_lock_irq(struct rq_flags *rf)
 	return rq;
 }
 
+#ifdef CONFIG_CPU_IDLERUNTIME
+extern DEFINE_PER_CPU(unsigned long long, idlestart);
+extern DEFINE_PER_CPU(unsigned long long, idlestop);
+extern DEFINE_PER_CPU(unsigned long long, idletime);
+extern DEFINE_PER_CPU(unsigned long long, runtime);
+extern DEFINE_PER_CPU(raw_spinlock_t, idleruntime_lock);
+#endif
+
 #ifdef CONFIG_NUMA
 enum numa_topology_type {
 	NUMA_DIRECT,
@@ -2435,6 +2443,7 @@ extern void init_sched_fair_class(void);
 extern void reweight_task(struct task_struct *p, int prio);
 
 extern void resched_curr(struct rq *rq);
+extern void resched_curr_lazy(struct rq *rq);
 extern void resched_cpu(int cpu);
 
 extern struct rt_bandwidth def_rt_bandwidth;

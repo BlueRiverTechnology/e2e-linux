@@ -45,6 +45,7 @@
 #include <linux/uaccess.h>
 
 #include <trace/events/timer.h>
+#include <trace/events/hist.h>
 
 #include "tick-internal.h"
 
@@ -1258,6 +1259,17 @@ static int __hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 		new_base = base;
 	}
 
+#ifdef CONFIG_MISSED_TIMER_OFFSETS_HIST
+	{
+		ktime_t now = new_base->get_time();
+
+		if (ktime_to_ns(tim) < ktime_to_ns(now))
+			timer->praecox = now;
+	else
+			timer->praecox = ktime_set(0, 0);
+	}
+#endif
+
 	first = enqueue_hrtimer(timer, new_base, mode);
 	if (!force_local)
 		return first;
@@ -1717,6 +1729,8 @@ static void __run_hrtimer(struct hrtimer_cpu_base *cpu_base,
 	base->running = NULL;
 }
 
+static enum hrtimer_restart hrtimer_wakeup(struct hrtimer *timer);
+
 static void __hrtimer_run_queues(struct hrtimer_cpu_base *cpu_base, ktime_t now,
 				 unsigned long flags, unsigned int active_mask)
 {
@@ -1733,6 +1747,15 @@ static void __hrtimer_run_queues(struct hrtimer_cpu_base *cpu_base, ktime_t now,
 			struct hrtimer *timer;
 
 			timer = container_of(node, struct hrtimer, node);
+
+			trace_hrtimer_interrupt(raw_smp_processor_id(),
+			    ktime_to_ns(ktime_sub(ktime_to_ns(timer->praecox) ?
+				timer->praecox : hrtimer_get_expires(timer),
+				basenow)),
+			    current,
+			    timer->function == hrtimer_wakeup ?
+			    container_of(timer, struct hrtimer_sleeper,
+				timer)->task : NULL);
 
 			/*
 			 * The immediate goal for using the softexpires is
@@ -1808,7 +1831,7 @@ retry:
 	if (!ktime_before(now, cpu_base->softirq_expires_next)) {
 		cpu_base->softirq_expires_next = KTIME_MAX;
 		cpu_base->softirq_activated = 1;
-		raise_softirq_irqoff(HRTIMER_SOFTIRQ);
+		raise_hrtimer_softirq();
 	}
 
 	__hrtimer_run_queues(cpu_base, now, flags, HRTIMER_ACTIVE_HARD);
@@ -1921,7 +1944,7 @@ void hrtimer_run_queues(void)
 	if (!ktime_before(now, cpu_base->softirq_expires_next)) {
 		cpu_base->softirq_expires_next = KTIME_MAX;
 		cpu_base->softirq_activated = 1;
-		raise_softirq_irqoff(HRTIMER_SOFTIRQ);
+		raise_hrtimer_softirq();
 	}
 
 	__hrtimer_run_queues(cpu_base, now, flags, HRTIMER_ACTIVE_HARD);

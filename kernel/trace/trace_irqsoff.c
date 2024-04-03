@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/ftrace.h>
 #include <linux/kprobes.h>
+#include <trace/events/hist.h>
 
 #include "trace.h"
 
@@ -439,12 +440,14 @@ void start_critical_timings(void)
 {
 	if (preempt_trace(preempt_count()) || irq_trace())
 		start_critical_timing(CALLER_ADDR0, CALLER_ADDR1);
+	trace_preempt_disable_rcuidle(TRACE_START, 1);
 }
 EXPORT_SYMBOL_GPL(start_critical_timings);
 NOKPROBE_SYMBOL(start_critical_timings);
 
 void stop_critical_timings(void)
 {
+	trace_preempt_disable_rcuidle(TRACE_STOP, 0);
 	if (preempt_trace(preempt_count()) || irq_trace())
 		stop_critical_timing(CALLER_ADDR0, CALLER_ADDR1);
 }
@@ -608,6 +611,7 @@ static void irqsoff_tracer_stop(struct trace_array *tr)
  */
 void tracer_hardirqs_on(unsigned long a0, unsigned long a1)
 {
+	trace_preempt_disable_rcuidle(IRQS_ON, 0);
 	if (!preempt_trace(preempt_count()) && irq_trace())
 		stop_critical_timing(a0, a1);
 }
@@ -617,6 +621,7 @@ void tracer_hardirqs_off(unsigned long a0, unsigned long a1)
 {
 	if (!preempt_trace(preempt_count()) && irq_trace())
 		start_critical_timing(a0, a1);
+	trace_preempt_disable_rcuidle(IRQS_OFF, 1);
 }
 NOKPROBE_SYMBOL(tracer_hardirqs_off);
 

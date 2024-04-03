@@ -80,6 +80,7 @@ obj-$(CONFIG_UTS_NS) += utsname.o
 obj-$(CONFIG_USER_NS) += user_namespace.o
 obj-$(CONFIG_PID_NS) += pid_namespace.o
 obj-$(CONFIG_IKCONFIG) += configs.o
+obj-$(CONFIG_IKPATCHSET) += patchset.o
 obj-$(CONFIG_IKHEADERS) += kheaders.o
 obj-$(CONFIG_SMP) += stop_machine.o
 obj-$(CONFIG_AUDIT) += audit.o auditfilter.o
@@ -149,6 +150,25 @@ filechk_cat = cat $<
 
 $(obj)/config_data: $(KCONFIG_CONFIG) FORCE
 	$(call filechk,cat)
+
+$(obj)/patchset.o: $(obj)/patchset_data.h
+
+# patchset_data.h contains the patchset as gzipped tar archive
+# The archive can be extracted from /proc/patchset.tar.gz
+baseversion: include/generated/utsrelease.h
+	@cut -d" " -f 3 include/generated/utsrelease.h | tr -d '"' | cut -d- -f1 >$@
+targets += patchset_data.gz
+$(obj)/patchset_data.gz: $(wildcard patches/*) patches/series baseversion
+	@mv patches/series patches/series.bak
+	@quilt applied | sed s,^patches/,, >patches/series.raw
+	@mv patches/series.raw patches/series
+	@tar zcf $@ `quilt applied | sed '/^patches\//! { s,\(.*\),patches/\1, }'` patches/series baseversion
+	@mv patches/series.bak patches/series
+
+      filechk_ikpatchsetgz = (echo "static const char kernel_patchset_data[] __used = MAGIC_START"; cat $< | scripts/bin2c; echo "MAGIC_END;")
+targets += patchset_data.h
+$(obj)/patchset_data.h: $(obj)/patchset_data.gz FORCE
+	$(call filechk,ikpatchsetgz)
 
 $(obj)/kheaders.o: $(obj)/kheaders_data.tar.xz
 

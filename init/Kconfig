@@ -583,6 +583,34 @@ config BSD_PROCESS_ACCT_V3
 	  for processing it. A preliminary version of these tools is available
 	  at <http://www.gnu.org/software/acct/>.
 
+config CPU_IDLERUNTIME
+	bool "Provide individual CPU usage measurement based on idle processing"
+	help
+	  If you say Y here, individual CPU usage data will be provided that are
+	  based on idle processing. The data are available for every CPU and for
+	  all present CPUs summed up in /proc/idleruntime/cpuN/data and
+	  /proc/idleruntime/all/data, respectively, in the format
+	  "<idletime> <runtime>". The counters can be reset by writing to
+	  /proc/idleruntime/cpuN/reset separately for every CPU and to
+	  /proc/idleruntime/all/reset for all present CPUs at once. To calculate
+	  the CPU usage since the most recent reset, the runtime must be devided
+	  by the sum of idletime plus runtime
+	    awk '{print (100.0*$2) / ($1+$2)"%"}' </proc/idleruntime/cpu0/data
+	  for every CPU or
+	    awk '{print (100.0*$2) / ($1+$2)"%"}' </proc/idleruntime/all/data
+	  for all CPUs altogether. The shell code snippet
+	  # for i in `ls -1d /proc/idleruntime/cpu* | sort -nk1.22`
+	  > do
+	  >   echo "$i: `awk '{ print (100.0*$2) / ($1+$2)"%" }' <$i/data`"
+	  >   echo 1 >$i/reset
+	  > done
+	  may produce
+	  /proc/idleruntime/cpu0: 72.0048%
+	  /proc/idleruntime/cpu1: 5.49522%
+	  /proc/idleruntime/cpu2: 0.27916%
+	  /proc/idleruntime/cpu3: 32.3493%
+	  on a four-core processor.
+
 config TASKSTATS
 	bool "Export task/process statistics through netlink"
 	depends on NET
@@ -683,6 +711,10 @@ config CPU_ISOLATION
 
 source "kernel/rcu/Kconfig"
 
+config BUILD_BIN2C
+        bool
+        default n
+
 config IKCONFIG
 	tristate "Kernel .config support"
 	help
@@ -701,6 +733,47 @@ config IKCONFIG_PROC
 	help
 	  This option enables access to the kernel configuration file
 	  through /proc/config.gz.
+
+config IKPATCHSET
+	tristate "Kernel patchset support"
+	depends on PROC_FS
+	select IKCONFIG
+	select BUILD_BIN2C
+	help
+	  This option enables the complete patchset, if any, to be saved
+	  in the kernel. The patchset can be extracted from a kernel image
+	  file using the script scripts/extract-ikpatchset. It is also
+	  possible to extract the patchset from a running kernel via
+	  /proc/patchset.tar.gz. The vanilla kernel version on which the
+	  patchset is based is available in the file "baseversion" of the
+	  archive. Thus, the following command sequence will create a
+	  patched kernel source tree from which an identical kernel can be
+	  rebuilt (assumes that IKPATCHSET_PROC is also configured):
+	    tar zxf /proc/patchset.tar.gz baseversion
+	    major=`cut -d. -f1 baseversion`
+	    urldir=http://www.kernel.org/pub/linux/kernel/v$major.x
+	    dir=linux-`cat baseversion`
+	    rm -f baseversion
+	    archive=$dir.tar.xz
+	    wget $urldir/$archive
+	    tar Jxf $archive
+	    cd $dir
+	    tar zxf /proc/patchset.tar.gz
+	    quilt push -a
+	    zcat /proc/config.gz >.config
+
+config IKPATCHSET_PROC
+	bool "Enable access to patchset.tar.gz through /proc/patchset.tar.gz"
+	depends on IKPATCHSET && PROC_FS
+	select IKCONFIG_PROC
+	help
+	  This option enables access to the patchset used when building the
+	  current kernel through /proc/patchset.tar.gz.
+
+	  Select this if you are using an official mainline kernel with
+	  off-tree patches (quilt queue) and you want to enable your users to
+	  rebuilt a functionally identical kernel without requiring any more
+	  information.
 
 config IKHEADERS
 	tristate "Enable kernel headers through /sys/kernel/kheaders.tar.xz"

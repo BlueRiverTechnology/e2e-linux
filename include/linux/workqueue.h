@@ -532,6 +532,7 @@ extern void show_all_workqueues(void);
 extern void show_freezable_workqueues(void);
 extern void show_one_workqueue(struct workqueue_struct *wq);
 extern void wq_worker_comm(char *buf, size_t size, struct task_struct *task);
+extern void wq_worker_comm_nolock(char *buf, size_t size, struct task_struct *task);
 
 /**
  * queue_work - queue work on a workqueue

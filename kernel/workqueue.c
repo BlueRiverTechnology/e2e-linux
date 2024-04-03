@@ -5378,6 +5378,38 @@ void wq_worker_comm(char *buf, size_t size, struct task_struct *task)
 	mutex_unlock(&wq_pool_attach_mutex);
 }
 
+/* used to get worker information for latency histograms */
+void wq_worker_comm_nolock(char *buf, size_t size, struct task_struct *task)
+{
+	int off;
+
+	/* always show the actual comm */
+	off = strscpy(buf, task->comm, size);
+	if (off < 0)
+		return;
+
+	if (task->flags & PF_WQ_WORKER) {
+		struct worker *worker = kthread_data(task);
+		struct worker_pool *pool = worker->pool;
+
+		if (pool) {
+			/*
+			 * ->desc tracks information (wq name or
+			 * set_worker_desc()) for the latest execution.  If
+			 * current, prepend '+', otherwise '-'.
+			 */
+			if (worker->desc[0] != '\0') {
+				if (worker->current_work)
+					scnprintf(buf + off, size - off, "+%s",
+						  worker->desc);
+				else
+					scnprintf(buf + off, size - off, "-%s",
+						  worker->desc);
+			}
+		}
+	}
+}
+
 #ifdef CONFIG_SMP
 
 /*

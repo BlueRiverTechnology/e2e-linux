@@ -71,6 +71,8 @@ struct task_delay_info;
 struct task_group;
 struct user_event_mm;
 
+#define MAXFULLTASKNAME 64
+
 /*
  * Task state bitmask. NOTE! These bits are also
  * encoded in fs/proc/array.c: get_task_state().
@@ -911,6 +913,9 @@ struct task_struct {
 	 * ->sched_remote_wakeup gets used, so it can be in this word.
 	 */
 	unsigned			sched_remote_wakeup:1;
+#ifdef CONFIG_RT_MUTEXES
+	unsigned			sched_rt_mutex:1;
+#endif
 
 	/* Bit to tell LSMs we're in execve(): */
 	unsigned			in_execve:1;
@@ -1404,6 +1409,20 @@ struct task_struct {
 #ifdef CONFIG_TRACING
 	/* Bitmask and counter of trace recursion: */
 	unsigned long			trace_recursion;
+#ifdef CONFIG_WAKEUP_LATENCY_HIST
+	u64				preempt_timestamp_hist;
+#ifdef CONFIG_MISSED_TIMER_OFFSETS_HIST
+	long				timer_offset;
+#endif
+#endif /* CONFIG_WAKEUP_LATENCY_HIST */
+#ifdef CONFIG_SWITCHTIME_HIST
+	u64				switchtime_timestamp_hist;
+	struct task_struct		*switchtime_prev;
+#if defined(CONFIG_WAKEUP_LATENCY_HIST) && \
+	defined(CONFIG_MISSED_TIMER_OFFSETS_HIST)
+	unsigned long			wakeup_latency;
+#endif
+#endif /* CONFIG_SWITCHTIME_HIST */
 #endif /* CONFIG_TRACING */
 
 #ifdef CONFIG_KCOV
@@ -1902,6 +1921,7 @@ static inline int dl_task_check_affinity(struct task_struct *p, const struct cpu
 }
 #endif
 
+extern bool task_is_pi_boosted(const struct task_struct *p);
 extern int yield_to(struct task_struct *p, bool preempt);
 extern void set_user_nice(struct task_struct *p, long nice);
 extern int task_prio(const struct task_struct *p);
@@ -2046,17 +2066,17 @@ static inline void update_tsk_thread_flag(struct task_struct *tsk, int flag,
 	update_ti_thread_flag(task_thread_info(tsk), flag, value);
 }
 
-static inline int test_and_set_tsk_thread_flag(struct task_struct *tsk, int flag)
+static inline bool test_and_set_tsk_thread_flag(struct task_struct *tsk, int flag)
 {
 	return test_and_set_ti_thread_flag(task_thread_info(tsk), flag);
 }
 
-static inline int test_and_clear_tsk_thread_flag(struct task_struct *tsk, int flag)
+static inline bool test_and_clear_tsk_thread_flag(struct task_struct *tsk, int flag)
 {
 	return test_and_clear_ti_thread_flag(task_thread_info(tsk), flag);
 }
 
-static inline int test_tsk_thread_flag(struct task_struct *tsk, int flag)
+static inline bool test_tsk_thread_flag(struct task_struct *tsk, int flag)
 {
 	return test_ti_thread_flag(task_thread_info(tsk), flag);
 }
@@ -2069,9 +2089,11 @@ static inline void set_tsk_need_resched(struct task_struct *tsk)
 static inline void clear_tsk_need_resched(struct task_struct *tsk)
 {
 	clear_tsk_thread_flag(tsk,TIF_NEED_RESCHED);
+	if (IS_ENABLED(CONFIG_PREEMPT_BUILD_AUTO))
+		clear_tsk_thread_flag(tsk, TIF_NEED_RESCHED_LAZY);
 }
 
-static inline int test_tsk_need_resched(struct task_struct *tsk)
+static inline bool test_tsk_need_resched(struct task_struct *tsk)
 {
 	return unlikely(test_tsk_thread_flag(tsk,TIF_NEED_RESCHED));
 }
@@ -2252,7 +2274,7 @@ static inline int rwlock_needbreak(rwlock_t *lock)
 
 static __always_inline bool need_resched(void)
 {
-	return unlikely(tif_need_resched());
+	return unlikely(tif_need_resched_lazy() || tif_need_resched());
 }
 
 /*

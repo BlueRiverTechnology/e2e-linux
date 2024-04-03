@@ -13,6 +13,9 @@
 #include "trace_output.h"
 #include "trace.h"
 
+EXPORT_TRACEPOINT_SYMBOL_GPL(sys_enter);
+EXPORT_TRACEPOINT_SYMBOL_GPL(sys_exit);
+
 static DEFINE_MUTEX(syscall_trace_lock);
 
 static int syscall_enter_register(struct trace_event_call *event,
