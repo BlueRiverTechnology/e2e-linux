@@ -115,6 +115,12 @@ MODULE_LICENSE("GPL v2");
 #define CANFD_CTL_IRQ_CL_DEF	16	/* Rx msg max nb per IRQ in Rx DMA */
 #define CANFD_CTL_IRQ_TL_DEF	10	/* Time before IRQ if < CL (x100 µs) */
 
+static int irq_batch_max_messages = CANFD_CTL_IRQ_CL_DEF;
+module_param(irq_batch_max_messages, int, 0660);
+
+static int irq_batch_timeout_us = CANFD_CTL_IRQ_TL_DEF * 100;
+module_param(irq_batch_timeout_us, int, 0660);
+
 /* Tx anticipation window (link logical address should be aligned on 2K
  * boundary)
  */
@@ -415,8 +421,8 @@ static int pciefd_pre_cmd(struct peak_canfd_priv *ucan)
 		pciefd_can_setup_rx_dma(priv);
 
 		/* setup max count of msgs per IRQ */
-		pciefd_can_writereg(priv, (CANFD_CTL_IRQ_TL_DEF) << 8 |
-				    CANFD_CTL_IRQ_CL_DEF,
+		pciefd_can_writereg(priv, (irq_batch_timeout_us / 100) << 8 |
+				    irq_batch_max_messages,
 				    PCIEFD_REG_CAN_RX_CTL_WRT);
 
 		/* clear DMA RST for Rx (Rx start) */
